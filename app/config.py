@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,6 +34,23 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("SECRET_KEY", "REFRESH_SECRET_KEY", mode="after")
+    @classmethod
+    def validate_production_secrets(cls, v: str, info) -> str:
+        dev_defaults = {
+            "dev-secret-key-change-in-prod-1234567890",
+            "dev-refresh-secret-key-change-in-prod-1234567890",
+            "change-this-to-a-super-secret-key-in-production",
+            "change-this-to-another-super-secret-key",
+            "",
+        }
+        env = info.data.get("ENV", "development")
+        if env != "development" and v in dev_defaults:
+            raise ValueError(
+                f"Secret '{info.field_name}' must be explicitly set and cannot use a development default when ENV is '{env}'."
+            )
+        return v
 
 
 settings = Settings()
