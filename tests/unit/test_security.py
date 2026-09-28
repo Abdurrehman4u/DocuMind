@@ -1,3 +1,6 @@
+from datetime import timedelta
+import jwt
+import pytest
 from app.core import security
 from app.config import settings
 
@@ -24,3 +27,19 @@ def test_create_and_decode_refresh_token():
     payload = security.decode_token(token, settings.REFRESH_SECRET_KEY)
     assert payload.get("sub") == user_id
     assert payload.get("type") == "refresh"
+
+
+def test_expired_token_raises_exception():
+    token = security.create_access_token(
+        data={"sub": "expired-user"},
+        expires_delta=timedelta(seconds=-1),
+    )
+    with pytest.raises(jwt.ExpiredSignatureError):
+        security.decode_token(token, settings.SECRET_KEY)
+
+
+def test_invalid_token_signature_raises_exception():
+    token = security.create_access_token(data={"sub": "user-wrong-key"})
+    with pytest.raises(jwt.InvalidSignatureError):
+        security.decode_token(token, "wrong-secret-key-32-bytes-minimum-length!!")
+

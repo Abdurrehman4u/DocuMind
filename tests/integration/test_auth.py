@@ -66,3 +66,38 @@ def test_auth_flow_integration():
     refresh_data = refresh_res.json()
     assert "access_token" in refresh_data
     assert "refresh_token" in refresh_data
+
+    # 8. Invalid access token fails on /me
+    invalid_token_res = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": "Bearer invalid_token_str"},
+    )
+    assert invalid_token_res.status_code == 401
+
+    # 9. Expired access token fails on /me
+    from datetime import timedelta
+    from app.core import security
+    expired_access_token = security.create_access_token(
+        data={"sub": me_data["id"]},
+        expires_delta=timedelta(seconds=-1),
+    )
+    expired_token_res = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {expired_access_token}"},
+    )
+    assert expired_token_res.status_code == 401
+
+    # 10. Invalid refresh token fails
+    bad_refresh_res = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": "invalid_refresh_token_str"},
+    )
+    assert bad_refresh_res.status_code == 401
+
+    # 11. Access token passed as refresh token fails
+    access_as_refresh_res = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": access_token},
+    )
+    assert access_as_refresh_res.status_code == 401
+
