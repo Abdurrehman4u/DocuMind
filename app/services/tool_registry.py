@@ -90,6 +90,7 @@ TOOL_CALLABLES = {
 
 def get_gemini_tools() -> list[types.Tool]:
     """Convert registered tool declarations into google.genai types.Tool."""
+    from google.genai import types
     func_decls = []
     for tool_def in TOOL_DEFINITIONS:
         func_decls.append(

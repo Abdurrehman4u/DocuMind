@@ -93,6 +93,7 @@ class LLMService:
                 raise ValueError(
                     "GEMINI_API_KEY is not configured. Please set GEMINI_API_KEY in the environment or .env."
                 )
+            from google import genai
             self._gemini_client = genai.Client(api_key=self.api_key)
         return self._gemini_client
 
@@ -117,6 +118,8 @@ class LLMService:
         user_content_str = build_rag_prompt(query, context_chunks)
 
         if self.provider == "gemini":
+            from google.genai import types
+
             client = self._get_gemini_client()
 
             contents: list[types.Content] = []

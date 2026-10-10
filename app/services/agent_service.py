@@ -42,6 +42,7 @@ class AgentService:
         if self._client is None:
             if not self.api_key:
                 raise ValueError("GEMINI_API_KEY is not configured for the Agent service.")
+            from google import genai
             self._client = genai.Client(api_key=self.api_key)
         return self._client
 
@@ -67,6 +68,7 @@ class AgentService:
             Maximum number of sequential tool calls.
         """
         client = self._get_client()
+        from google.genai import types
         gemini_tools = get_gemini_tools()
 
         contents: list[types.Content] = [

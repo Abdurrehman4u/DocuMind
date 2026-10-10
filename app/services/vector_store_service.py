@@ -14,12 +14,13 @@ Design decisions:
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Sequence
-
-import chromadb
-from chromadb import Collection
+from typing import TYPE_CHECKING, Sequence
 
 from app.config import settings
+
+if TYPE_CHECKING:
+    import chromadb
+    from chromadb import Collection
 
 COLLECTION_NAME = "documind_chunks"
 
@@ -32,6 +33,7 @@ COLLECTION_NAME = "documind_chunks"
 @lru_cache(maxsize=1)
 def _get_client() -> chromadb.ClientAPI:
     """Return (and cache) the ChromaDB persistent client."""
+    import chromadb
     return chromadb.PersistentClient(path=settings.CHROMA_PERSIST_DIR)
 
 

@@ -14,11 +14,12 @@ Current provider: sentence-transformers / all-MiniLM-L6-v2
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Sequence
-
-from sentence_transformers import SentenceTransformer
+from typing import TYPE_CHECKING, Sequence
 
 from app.config import settings
+
+if TYPE_CHECKING:
+    from sentence_transformers import SentenceTransformer
 
 # ---------------------------------------------------------------------------
 # Singleton model loader
@@ -28,7 +29,9 @@ from app.config import settings
 @lru_cache(maxsize=1)
 def _get_model() -> SentenceTransformer:
     """Load (and cache) the sentence-transformers model once per process."""
+    from sentence_transformers import SentenceTransformer
     return SentenceTransformer(settings.EMBEDDING_MODEL)
+
 
 
 # ---------------------------------------------------------------------------
