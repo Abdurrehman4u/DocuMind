@@ -397,6 +397,104 @@
           }
         }
       ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Get Task Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "List Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Evaluation",
+      "item": [
+        {
+          "name": "Run Answer Evaluation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 202 || pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    if (data.task_id) {",
+                  "        pm.environment.set(\"task_id\", data.task_id);",
+                  "    }",
+                  "    if (data.eval_result_id) {",
+                  "        pm.environment.set(\"eval_id\", data.eval_result_id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message_id\": \"{{message_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/eval/run",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "eval", "run"]
+            }
+          }
+        },
+        {
+          "name": "Get Evaluation Result",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/eval/{{eval_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "eval", "{{eval_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Message Evaluations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/eval/message/{{message_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "eval", "message", "{{message_id}}"]
+            }
+          }
+        }
+      ]
     }
   ]
 }

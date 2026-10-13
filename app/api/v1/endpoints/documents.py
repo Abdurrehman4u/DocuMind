@@ -116,9 +116,22 @@ async def upload_document(
     db.commit()
     db.refresh(doc)
 
-    # Enqueue Celery ingestion task
-    ingest_document_task.delay(doc.id)
-    logger.info("Document %s uploaded by user %s — ingestion enqueued", doc.id, current_user.id)
+    # Create Task tracking row & enqueue Celery ingestion task
+    from app.models.task import Task
+    task_row = Task(
+        user_id=current_user.id,
+        type="ingestion",
+        status="pending",
+    )
+    db.add(task_row)
+    db.commit()
+    db.refresh(task_row)
+
+    async_res = ingest_document_task.delay(doc.id, task_record_id=task_row.id)
+    task_row.celery_task_id = async_res.id
+    db.commit()
+
+    logger.info("Document %s uploaded by user %s — ingestion enqueued (task_id=%s)", doc.id, current_user.id, task_row.id)
 
     return doc
 

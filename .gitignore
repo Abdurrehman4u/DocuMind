@@ -23,6 +23,7 @@ uploads/
 
 # Testing & Coverage
 .pytest_cache/
+.pytest_temp/
 .coverage
 htmlcov/
 agent_docs/

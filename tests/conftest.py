@@ -19,9 +19,12 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["REDIS_URL"] = "redis://localhost:6379/0"
 os.environ["SECRET_KEY"] = "test-secret-key-32-bytes-minimum-length!!"
 os.environ["REFRESH_SECRET_KEY"] = "test-refresh-secret-key-32-bytes-minimum-length!!"
-os.environ["GEMINI_API_KEY"] = "mock-test-gemini-api-key"
+os.environ["GEMINI_API_KEY"] = ""
 os.environ["CHROMA_PERSIST_DIR"] = ":memory:"
 
+import shutil
+import uuid
+from pathlib import Path
 from typing import Generator
 from unittest.mock import MagicMock
 import pytest
@@ -30,6 +33,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 # Import models and declarative base to build schema
+from app.config import settings
+settings.GEMINI_API_KEY = ""
 from app.db.base_class import Base
 import app.models  # noqa: F401
 from app.core.dependencies import get_db
@@ -50,6 +55,8 @@ def test_engine():
         poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
+    session_module.engine = engine
+    session_module.SessionLocal.configure(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
 
@@ -143,3 +150,70 @@ def _mock_chromadb_globally(monkeypatch):
 
     monkeypatch.setattr(vector_store_service, "_get_client", lambda: mock_client)
     monkeypatch.setattr(vector_store_service, "_get_collection", lambda: mock_collection)
+
+
+# ── Guard Gemini Calls ────────────────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def _prevent_gemini_network_calls(monkeypatch):
+    """
+    Ensure no test can ever make an un-mocked external network call to Google Gemini.
+    """
+    from google import genai
+
+    def _blocked_client(*args, **kwargs):
+        raise RuntimeError(
+            "Blocked un-mocked Google GenAI Client initialization in test environment! "
+            "Mock the client explicitly or rely on GEMINI_API_KEY='' for offline fallback."
+        )
+
+    monkeypatch.setattr(genai, "Client", _blocked_client)
+
+
+# ── Isolated Workspace-Local Upload Directory Fixtures ───────────────────────
+
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
+PYTEST_TEMP_DIR = WORKSPACE_ROOT / ".pytest_temp"
+UPLOAD_TEMP_BASE = PYTEST_TEMP_DIR / "uploads"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _ensure_project_temp_dir():
+    """Ensure workspace-local temporary directory is created and cleaned safely."""
+    UPLOAD_TEMP_BASE.mkdir(parents=True, exist_ok=True)
+    yield
+    try:
+        shutil.rmtree(PYTEST_TEMP_DIR, ignore_errors=True)
+    except Exception:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def _isolate_upload_dir(monkeypatch) -> Generator[Path, None, None]:
+    """
+    Ensure all tests store uploads in a safe, project-local workspace temporary directory.
+    Completely avoids Windows OS %TEMP% permission and junction/symlink issues.
+    Cleans up safely after each test run.
+    """
+    from app.config import settings
+    test_upload_dir = UPLOAD_TEMP_BASE / uuid.uuid4().hex
+    test_upload_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(test_upload_dir))
+
+    yield test_upload_dir
+
+    try:
+        shutil.rmtree(test_upload_dir, ignore_errors=True)
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def tmp_path(_isolate_upload_dir) -> Path:
+    """
+    Safe project-local replacement for pytest's built-in tmp_path fixture.
+    Guarantees that any test or fixture requesting tmp_path uses the
+    workspace-local test directory and avoids Windows temp permission locks.
+    """
+    return _isolate_upload_dir
+
